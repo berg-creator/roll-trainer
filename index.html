@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Тренажёр: детектор роликов</title>
+<meta name="description" content="Пошаговый план: обучить детектор роликов картона и написать управляющую программу виртуального реле.">
+<style>
+:root{
+  --bg:#f6f5f2;--surface:#ffffff;--text:#1d1d1b;--muted:#6b6a65;--line:#e3e1db;
+  --accent:#2f6f5e;--accent-soft:#e3efe9;--warn:#9a5b13;--warn-soft:#f6ecdc;--done:#2f6f5e;
+  --code:#f0eee9;--radius:12px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#151614;--surface:#1e1f1c;--text:#ecebe6;--muted:#9c9a92;--line:#2f302c;
+    --accent:#6fbfa6;--accent-soft:#1f3530;--warn:#e0a35a;--warn-soft:#3a2d1c;--done:#6fbfa6;--code:#262723;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#151614;--surface:#1e1f1c;--text:#ecebe6;--muted:#9c9a92;--line:#2f302c;
+  --accent:#6fbfa6;--accent-soft:#1f3530;--warn:#e0a35a;--warn-soft:#3a2d1c;--done:#6fbfa6;--code:#262723;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+a{color:var(--accent)}
+code,pre,textarea{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.9em}
+code{background:var(--code);padding:.1em .35em;border-radius:5px}
+pre{background:var(--code);padding:12px 14px;border-radius:8px;overflow-x:auto;margin:.6em 0}
+.wrap{max-width:1080px;margin:0 auto;padding:24px 16px 80px;display:grid;grid-template-columns:260px 1fr;gap:28px}
+header.top{grid-column:1/-1;display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+h1{font-size:1.6rem;margin:0 0 4px;line-height:1.25}
+.sub{color:var(--muted);margin:0}
+.theme{background:none;border:1px solid var(--line);color:var(--text);border-radius:8px;padding:6px 10px;cursor:pointer}
+nav{position:sticky;top:16px;align-self:start}
+.bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin:6px 0 14px}
+.bar>i{display:block;height:100%;background:var(--accent);width:0;transition:width .3s}
+nav ol{list-style:none;margin:0;padding:0}
+nav li button{width:100%;text-align:left;background:none;border:0;color:var(--text);padding:7px 10px;border-radius:8px;cursor:pointer;display:flex;gap:10px;align-items:center;font:inherit;font-size:.95rem}
+nav li button:hover{background:var(--surface)}
+nav li button.active{background:var(--surface);box-shadow:0 0 0 1px var(--line)}
+.dot{flex:0 0 22px;height:22px;border-radius:50%;border:1.5px solid var(--line);display:grid;place-items:center;font-size:.75rem;color:var(--muted)}
+.st-sent .dot{border-color:var(--warn);color:var(--warn)}
+.st-done .dot{background:var(--done);border-color:var(--done);color:var(--surface)}
+.st-redo .dot{border-color:var(--warn);background:var(--warn-soft);color:var(--warn)}
+main{min-width:0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:22px 24px;margin-bottom:16px}
+.card h2{margin:0 0 4px;font-size:1.35rem}
+.card h3{font-size:1.02rem;margin:1.4em 0 .4em}
+.meta{color:var(--muted);font-size:.9rem;margin-bottom:10px}
+.task{background:var(--accent-soft);border-radius:10px;padding:12px 16px;margin:12px 0}
+.task ul,.task ol{margin:.3em 0;padding-left:1.2em}
+details{border:1px solid var(--line);border-radius:10px;padding:8px 14px;margin:8px 0}
+details summary{cursor:pointer;font-weight:600}
+details[open] summary{margin-bottom:6px}
+.q{margin:6px 0}
+.q summary{font-weight:500}
+.ans{color:var(--muted)}
+textarea{width:100%;min-height:180px;background:var(--code);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:10px;resize:vertical}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.btn{background:var(--accent);color:var(--surface);border:0;border-radius:8px;padding:9px 16px;font:inherit;font-weight:600;cursor:pointer}
+.btn.ghost{background:none;color:var(--text);border:1px solid var(--line);font-weight:500}
+select{background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px}
+.note{font-size:.9rem;color:var(--muted)}
+.rules{border-left:3px solid var(--warn);padding:4px 0 4px 14px;margin:12px 0}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:8px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:calc(100% - 32px)}
+.toast.on{opacity:1}
+@media (max-width:820px){
+  .wrap{grid-template-columns:1fr;gap:16px}
+  nav{position:static}
+  nav ol{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px}
+  nav li button{white-space:nowrap}
+  .card{padding:18px 16px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Детектор роликов + виртуальное реле</h1>
+      <p class="sub">10 шагов. Код пишешь сам, сдаёшь на проверку — получаешь разбор.</p>
+    </div>
+    <button class="theme" id="theme" aria-label="Сменить тему">◐ Тема</button>
+  </header>
+
+  <nav>
+    <div class="note" id="progtext">Пройдено 0 из 10</div>
+    <div class="bar"><i id="progbar"></i></div>
+    <ol id="nav"></ol>
+  </nav>
+
+  <main id="main"></main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== настройка =====
+const REPO = "berg-creator/roll-trainer"; // куда сдаются работы (GitHub Issues)
+
+// ===== содержание шагов =====
+const STEPS = [
+{
+ id:"s0", title:"Окружение", time:"~30 мин",
+ theory:`<p>Весь проект живёт в отдельном виртуальном окружении Python, чтобы версии библиотек не конфликтовали с системными и чтобы проект можно было воспроизвести на другой машине.</p>
+<p>Понадобятся: <code>opencv-python</code> (чтение видео, рисование), <code>ultralytics</code> (обучение и запуск YOLO), <code>numpy</code>. Зависимости фиксируются в <code>requirements.txt</code>.</p>`,
+ task:`<ul><li>Создай репозиторий проекта со структурой папок (подумай сам: где скрипты, где данные, где веса).</li>
+<li>Создай venv, поставь библиотеки, запиши <code>requirements.txt</code>.</li>
+<li>Добавь <code>.gitignore</code>: что <b>не</b> должно попасть в git?</li></ul>`,
+ submit:"Структуру папок (вывод tree), requirements.txt и .gitignore.",
+ hints:["Видео, нарезанные кадры и веса модели весят много — их обычно не коммитят.","<code>python -m venv .venv</code>, затем активируй и ставь через pip.","Проверь, видит ли torch видеокарту: это сильно влияет на скорость обучения."],
+ qs:[["Зачем нужен venv?","Изоляция зависимостей проекта и воспроизводимость: на другой машине ставишь те же версии из requirements.txt."],
+     ["Почему не коммитят веса и датасет?","Большие бинарные файлы раздувают историю git навсегда. Их хранят отдельно (облако, LFS, релизы) и описывают, где взять."]]
+},
+{
+ id:"s1", title:"Анализ видео", time:"~1 ч",
+ theory:`<p>До всякого ML нужно понять данные: разрешение, fps, длительность, сколько роликов в кадре, как они движутся, где зона выхода транспортёра, бывает ли перекрытие, блики, люди в кадре.</p>
+<p><code>cv2.VideoCapture</code> открывает файл и отдаёт кадры по одному; свойства читаются через <code>cap.get(cv2.CAP_PROP_...)</code>.</p>`,
+ task:`<ol><li>Напиши <code>video_info.py</code>: для каждого demo_*.mp4 выводит разрешение, fps, число кадров, длительность.</li>
+<li>Посмотри все 8 видео глазами и запиши наблюдения: где зона выхода, в какую сторону едут ролики, сложные случаи.</li></ol>`,
+ submit:"Код скрипта, его вывод и список наблюдений (5–10 пунктов).",
+ hints:["Путь к папке с видео принимай аргументом, а не зашивай в код.","Длительность = кадры / fps. Сравни с тем, что показывает плеер.","Заказчик сказал «камера 20 fps» — совпадает ли это с fps в файлах?"],
+ qs:[["Почему CAP_PROP_FRAME_COUNT может врать?","Значение берётся из метаданных контейнера; при переменном fps или битом файле оно приблизительное. Точно — только посчитать кадры, прочитав видео."],
+     ["Зачем смотреть видео глазами до разметки?","Чтобы заранее определить правила разметки сложных случаев и понять, какие кадры брать в датасет."]]
+},
+{
+ id:"s2", title:"Нарезка кадров", time:"~1 ч",
+ theory:`<p>Соседние кадры при 20 fps почти одинаковые. Если взять все — датасет раздуется дубликатами, а разнообразия не прибавится. Поэтому берут каждый N-й кадр.</p>
+<p>N подбирают так, чтобы между сохранёнными кадрами сцена заметно менялась (ролик сдвинулся).</p>`,
+ task:`<ul><li>Напиши <code>extract_frames.py</code>: аргументы — путь к видео (или папке), шаг N, папка вывода.</li>
+<li>Имена файлов должны говорить, из какого видео и какого кадра картинка (пригодится на шаге 4).</li>
+<li>Посчитай, сколько кадров получилось с каждого видео.</li></ul>`,
+ submit:"Код, выбранный N с обоснованием, сколько кадров получилось.",
+ hints:["<code>argparse</code> для аргументов.","Счётчик кадров + проверка остатка от деления.","<code>cv2.imwrite</code> сохраняет кадр; проверь, что папка вывода существует."],
+ qs:[["Как выбрать N?","Оценить скорость ленты: за сколько кадров ролик смещается заметно (например, на треть своей ширины). Плюс прикинуть, сколько кадров реально успеешь разметить."],
+     ["Чем плохи почти одинаковые кадры в датасете?","Модель запоминает конкретные кадры, метрики на валидации завышаются, а разнообразия нет."]]
+},
+{
+ id:"s3", title:"Разметка", time:"~3–5 ч",
+ theory:`<p>Один класс — <b>ролик</b>. Каждый ролик — отдельная прямоугольная рамка, плотно по краям.</p>
+<p>Формат YOLO: на каждую картинку — .txt, в нём строка на объект: <code>class cx cy w h</code>, всё в долях от ширины/высоты кадра (0…1).</p>
+<p>Инструменты: CVAT, Label Studio, Roboflow, labelImg — все умеют экспорт в YOLO.</p>`,
+ task:`<ol><li>Запиши правила разметки (до начала!): обрезанные краем кадра ролики, перекрытые, размытые.</li>
+<li>Разметь кадры. Кадры без роликов тоже оставь — пустой .txt.</li>
+<li>Напиши <code>check_labels.py</code>: рисует рамки из .txt поверх картинок — так ты проверишь и разметку, и своё понимание формата.</li></ol>`,
+ submit:"Правила разметки, сколько картинок/рамок, код check_labels.py и 2–3 скриншота его вывода.",
+ hints:["Чтобы нарисовать рамку, переведи cx,cy,w,h из долей в пиксели и в углы x1,y1,x2,y2.","Кадры без объектов учат модель не срабатывать на пустой ленте — это важно для реле.","Правила должны быть одинаковыми на всех кадрах — непоследовательная разметка хуже малой."],
+ qs:[["Почему координаты нормированы?","Разметка не зависит от разрешения: картинку можно ресайзить, а метки остаются верными."],
+     ["Зачем пустые кадры в датасете?","Негативные примеры уменьшают ложные срабатывания — а ложное срабатывание здесь = ложная блокировка реле."]]
+},
+{
+ id:"s4", title:"Датасет и разбиение", time:"~1 ч",
+ theory:`<p>Данные делят на <b>train</b> (обучение) и <b>val</b> (проверка). Главное правило здесь: делить <b>по видео</b>, а не по случайным кадрам. Соседние кадры одного видео почти одинаковы, и если они попадут в оба набора, валидация будет проверять «на выученном».</p>
+<p>Ultralytics читает датасет по <code>data.yaml</code>: пути к train/val и список классов.</p>`,
+ task:`<ul><li>Реши, какие видео пойдут в val, и обоснуй.</li><li>Напиши <code>split_dataset.py</code>, раскладывающий images/labels по train/val.</li><li>Составь <code>data.yaml</code>.</li></ul>`,
+ submit:"Код, data.yaml, какие видео в val и почему, сколько картинок в каждой части.",
+ hints:["Вот зачем имя видео в имени файла.","Обычно ~15–25% данных в val; у тебя 8 видео — 1–2 видео в val.","В val должны быть типичные сцены, а не самое странное видео."],
+ qs:[["Что такое утечка данных (data leakage)?","Когда информация из проверочных данных попадает в обучение (здесь — почти одинаковые кадры), и метрика перестаёт отражать реальное качество."],
+     ["Зачем вообще val?","Оценить, как модель работает на невиданных данных, выбрать лучшую эпоху и пороги, заметить переобучение."]]
+},
+{
+ id:"s5", title:"Обучение", time:"~2 ч + ожидание",
+ theory:`<p>Берём предобученную маленькую YOLO (n или s) и дообучаем на своём классе — это <b>transfer learning</b>: модель уже умеет видеть края, формы, текстуры, ей нужно только выучить «ролик».</p>
+<p>Ключевые параметры: <code>epochs</code>, <code>imgsz</code>, <code>batch</code>, предобученные веса. Ultralytics сам делает аугментации (сдвиги, яркость, мозаика) и сохраняет графики в <code>runs/</code>.</p>`,
+ task:`<ul><li>Напиши <code>train.py</code> (через Python API ultralytics, а не одной командой — так легче объяснить).</li><li>Запусти обучение, сохрани графики loss и метрик.</li><li>Опиши словами, что видно на графиках.</li></ul>`,
+ submit:"Код, итоговые метрики (precision, recall, mAP50, mAP50-95) и твоя интерпретация графиков.",
+ hints:["Начни с маленькой модели и небольшого числа эпох — проверить, что пайплайн работает.","Если train loss падает, а val loss растёт — что это значит?","Посмотри картинки val_batch*_pred в папке run: глазами видно больше, чем в цифрах."],
+ qs:[["Что такое IoU?","Площадь пересечения рамок / площадь объединения. Мера совпадения предсказанной и настоящей рамки."],
+     ["Precision vs recall?","Precision — какая доля найденного действительно ролики (мало ложных). Recall — какую долю настоящих роликов нашли (мало пропусков)."],
+     ["mAP50 и mAP50-95?","Средняя точность при пороге IoU 0.5; и среднее по порогам 0.5…0.95 — строже, учитывает точность рамок."],
+     ["Зачем предобученные веса?","Мало данных: модель с нуля не выучит общие признаки. Дообучение быстрее и точнее."]]
+},
+{
+ id:"s6", title:"Детекция на видео", time:"~1–2 ч",
+ theory:`<p>Обученная модель отдаёт для каждого кадра список рамок с уверенностью (confidence). Порог <code>conf</code> отсекает слабые предсказания. NMS убирает дубли рамок на одном объекте.</p>`,
+ task:`<ul><li>Напиши <code>detect_video.py</code>: читает видео, прогоняет каждый кадр, рисует рамки и conf, сохраняет новое видео.</li><li>Прогони на val-видео и посмотри результат.</li></ul>`,
+ submit:"Код, выбранный порог conf с обоснованием, описание ошибок модели (где пропускает, где ложно срабатывает).",
+ hints:["<code>cv2.VideoWriter</code> для записи; fps и размер бери из исходника.","Рамки в результатах ultralytics есть в пикселях (xyxy).","Попробуй 2–3 разных conf и сравни."],
+ qs:[["Что такое NMS?","Non-Maximum Suppression: из сильно перекрывающихся рамок одного класса оставляет одну с наибольшей уверенностью."],
+     ["Почему рамки «мигают» между кадрами?","Детектор смотрит на каждый кадр независимо; объект около порога conf то проходит, то нет. Это надо учесть в логике реле."]]
+},
+{
+ id:"s7", title:"Логика реле", time:"~2 ч",
+ theory:`<p>Это сердце задачи. Логика — <b>конечный автомат</b> с двумя состояниями реле: <i>разблокировано</i> и <i>заблокировано</i>.</p>
+<ul><li>Ролик «в зоне», если он в зоне выхода и левее X (реши, по какой точке рамки считать, и обоснуй).</li>
+<li>Ролик в зоне непрерывно ≥ Y секунд → блокировка.</li>
+<li>Ролика нет в зоне > Z секунд → разблокировка.</li></ul>
+<p>Логику стоит написать отдельным классом, который ничего не знает про нейросеть: на вход — «есть ли ролик в зоне» и время, на выход — состояние реле. Тогда её можно проверить тестами без видео.</p>`,
+ task:`<ol><li>Напиши класс реле/контроллера.</li><li>Напиши тесты на синтетических последовательностях: ролик появился и стоит; ролик мелькнул на 1 кадр; ролик ушёл на Z−1 и на Z+1 секунду.</li><li>Вынеси X, Y, Z в конфиг или аргументы.</li></ol>`,
+ submit:"Код класса, тесты и их вывод, какую точку рамки ты выбрал и почему.",
+ hints:["Время считай либо в кадрах (кадры / 20), либо по часам (<code>time.monotonic()</code>). Подумай, что лучше для файла и что для живой камеры.","Нужно помнить, с какого момента ролик в зоне и с какого момента его нет.","Детектор пропустил ролик на 1 кадр — должен ли сбрасываться таймер Y?"],
+ qs:[["Почему monotonic, а не time.time()?","time.time() может прыгнуть при синхронизации часов; monotonic только растёт — подходит для интервалов."],
+     ["Что такое гистерезис и где он тут?","Разные условия включения и выключения (Y и Z), чтобы реле не дребезжало от мигания детекций."],
+     ["Зачем отделять логику от детектора?","Тестируемость и замена: можно поменять модель или источник, не трогая логику, и проверить логику без видео."]]
+},
+{
+ id:"s8", title:"Реальное время", time:"~2 ч",
+ theory:`<p>«Реальное время» значит: решение принимается по свежему кадру, задержка не накапливается. Если модель обрабатывает кадр дольше 50 мс (1/20 с), очередь кадров растёт и реле реагирует на прошлое.</p>
+<p>Варианты: замерить скорость и выбрать модель/imgsz, пропускать кадры, читать камеру в отдельном потоке и всегда брать последний кадр.</p>`,
+ task:`<ul><li>Напиши <code>main.py</code>: источник — файл или камера, детекция, контроллер реле, окно с рамками, зоной, линией X и состоянием реле.</li><li>Для файла — режим имитации реального времени (не быстрее 20 fps).</li><li>Логируй события реле со временем.</li><li>Замерь FPS обработки.</li></ul>`,
+ submit:"Код, замеренный FPS, пример лога событий, видео/скриншоты работы.",
+ hints:["Зону и линию X нарисуй прямо на кадре — так проще проверять и демонстрировать.","<code>logging</code> вместо print.","Подумай, что делать, если кадр с камеры не пришёл."],
+ qs:[["Что будет, если обработка медленнее 20 fps?","Кадры копятся, задержка растёт, таймеры Y/Z считаются по устаревшим кадрам. Нужно отбрасывать старые кадры."],
+     ["Как ускорить инференс?","Меньшая модель, меньший imgsz, GPU, half precision, экспорт в ONNX/TensorRT."]]
+},
+{
+ id:"s9", title:"Оформление и защита", time:"~2 ч",
+ theory:`<p>Заказчик увидит сначала README и демо-видео, а потом уже код. Хорошее оформление: как поставить, как запустить, какие параметры, какие метрики получились, какие ограничения.</p>`,
+ task:`<ul><li>README: задача, структура, установка, запуск, параметры X/Y/Z, метрики, ограничения.</li><li>Демо-видео работы.</li><li>Расскажи проект за 2 минуты (запиши текст).</li></ul>`,
+ submit:"README, ссылку на демо и текст 2-минутного рассказа.",
+ hints:["Честно перечисли ограничения — это плюс, а не минус.","Осмысленные коммиты по ходу работы лучше одного огромного."],
+ qs:[["Что бы ты улучшил при большем времени?","Больше данных и сложных случаев, трекинг объектов, калибровка порогов на реальной линии, ускорение модели."],
+     ["Почему выбрал YOLO?","Быстрый одностадийный детектор, хорошо работает в реальном времени, удобное дообучение."]]
+}
+];
+
+// ===== состояние (только в этом браузере) =====
+const KEY="roll-trainer-v1";
+function load(){try{return JSON.parse(localStorage.getItem(KEY))||{}}catch(e){return {}}}
+function save(s){try{localStorage.setItem(KEY,JSON.stringify(s))}catch(e){}}
+let state=load(); state.status=state.status||{}; state.drafts=state.drafts||{};
+let current=state.current||STEPS[0].id;
+
+const LABEL={todo:"Не начат",sent:"Отправлен на проверку",redo:"Надо доработать",done:"Принят"};
+
+function renderNav(){
+  const nav=document.getElementById("nav"); nav.innerHTML="";
+  STEPS.forEach((s,i)=>{
+    const st=state.status[s.id]||"todo";
+    const li=document.createElement("li");
+    li.className="st-"+st;
+    li.innerHTML=`<button class="${s.id===current?"active":""}"><span class="dot">${st==="done"?"✓":i}</span>${s.title}</button>`;
+    li.querySelector("button").onclick=()=>{current=s.id;state.current=current;save(state);render();window.scrollTo({top:0,behavior:"smooth"})};
+    nav.appendChild(li);
+  });
+  const done=STEPS.filter(s=>state.status[s.id]==="done").length;
+  document.getElementById("progtext").textContent=`Принято ${done} из ${STEPS.length}`;
+  document.getElementById("progbar").style.width=(done/STEPS.length*100)+"%";
+}
+
+function renderStep(){
+  const i=STEPS.findIndex(s=>s.id===current), s=STEPS[i];
+  const st=state.status[s.id]||"todo";
+  const m=document.getElementById("main");
+  m.innerHTML=`
+  <section class="card">
+    <h2>Шаг ${i}. ${s.title}</h2>
+    <div class="meta">${s.time} · ${LABEL[st]}</div>
+    ${s.theory}
+    <h3>Задание</h3>
+    <div class="task">${s.task}</div>
+    <h3>Подсказки</h3>
+    <div class="note">Открывай по одной, только если застрял.</div>
+    ${s.hints.map((h,k)=>`<details><summary>Подсказка ${k+1}</summary>${h}</details>`).join("")}
+    <h3>Вопросы, которые могут задать</h3>
+    <div class="note">Сначала ответь вслух сам, потом открывай.</div>
+    ${s.qs.map(q=>`<details class="q"><summary>${q[0]}</summary><div class="ans">${q[1]}</div></details>`).join("")}
+  </section>
+  <section class="card">
+    <h2>Сдать на проверку</h2>
+    <p class="meta">Что приложить: ${s.submit}</p>
+    <textarea id="draft" placeholder="Вставь код, вывод и ответы…">${escapeHtml(state.drafts[s.id]||"")}</textarea>
+    <div class="row">
+      <button class="btn" id="send">Отправить на проверку</button>
+      <select id="st" aria-label="Статус шага">
+        ${Object.entries(LABEL).map(([k,v])=>`<option value="${k}" ${k===st?"selected":""}>${v}</option>`).join("")}
+      </select>
+      <a href="https://github.com/${REPO}/issues?q=label%3A${s.id}" target="_blank" rel="noopener">Разборы по шагу →</a>
+    </div>
+    <p class="note">Кнопка копирует текст и открывает задачу (issue) на GitHub — там же появится разбор. Черновик хранится только в этом браузере.</p>
+    <div class="row">
+      ${i>0?`<button class="btn ghost" id="prev">← Назад</button>`:""}
+      ${i<STEPS.length-1?`<button class="btn ghost" id="next">Дальше →</button>`:""}
+    </div>
+  </section>`;
+  const ta=document.getElementById("draft");
+  ta.oninput=()=>{state.drafts[s.id]=ta.value;save(state)};
+  document.getElementById("st").onchange=e=>{state.status[s.id]=e.target.value;save(state);render()};
+  document.getElementById("send").onclick=()=>submit(s,i,ta.value);
+  const p=document.getElementById("prev"),n=document.getElementById("next");
+  if(p)p.onclick=()=>{current=STEPS[i-1].id;state.current=current;save(state);render();scrollTo(0,0)};
+  if(n)n.onclick=()=>{current=STEPS[i+1].id;state.current=current;save(state);render();scrollTo(0,0)};
+}
+
+async function submit(s,i,text){
+  if(!text.trim()){toast("Сначала вставь, что сдаёшь");return}
+  let copied=false;
+  try{await navigator.clipboard.writeText(text);copied=true}catch(e){}
+  const fence="\n\n```\n"+text+"\n```";
+  const short=fence.length<6000;
+  const body=`**Шаг ${i}. ${s.title}**\n\nЧто приложить: ${s.submit}`+(short?fence:"\n\n<!-- Текст длинный: вставь его сюда из буфера обмена -->\n");
+  const url=`https://github.com/${REPO}/issues/new?title=${encodeURIComponent(`Шаг ${i}: ${s.title}`)}&labels=${s.id}&body=${encodeURIComponent(body)}`;
+  window.open(url,"_blank","noopener");
+  state.status[s.id]="sent";save(state);render();
+  toast(short?"Открыл GitHub — нажми Submit":(copied?"Текст длинный: он в буфере, вставь в issue":"Скопируй текст вручную и вставь в issue"));
+}
+
+function escapeHtml(t){return t.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))}
+function toast(t){const e=document.getElementById("toast");e.textContent=t;e.classList.add("on");setTimeout(()=>e.classList.remove("on"),3500)}
+function render(){renderNav();renderStep()}
+
+// тема
+(function(){
+  let t=null;try{t=localStorage.getItem(KEY+"-theme")}catch(e){}
+  if(t)document.documentElement.dataset.theme=t;
+  document.getElementById("theme").onclick=()=>{
+    const cur=document.documentElement.dataset.theme||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");
+    const nx=cur==="dark"?"light":"dark";document.documentElement.dataset.theme=nx;
+    try{localStorage.setItem(KEY+"-theme",nx)}catch(e){}
+  };
+})();
+render();
+</script>
+</body>
+</html>
